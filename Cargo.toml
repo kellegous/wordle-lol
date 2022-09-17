@@ -1,0 +1,16 @@
+[package]
+name = "wordle-lol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chrono = "0.4"
+scraper = "0.13"
+serde_json = "1.0"
+serde = {version = "1.0", features = ["derive"]}
+reqwest = {version="0.11", features=["blocking"]}
+url = "2.3"
+
+[[bin]]
+name = "today"
+path = "src/today/main.rs"
