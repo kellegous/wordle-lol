@@ -39,7 +39,7 @@ impl Matcher {
 }
 
 fn score_of(fb: &Feedback) -> usize {
-    5 - fb.iter().filter(|&d| *d == Directive::Black).count()
+    WORD_SIZE - fb.iter().filter(|&d| *d == Directive::Black).count()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
