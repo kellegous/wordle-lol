@@ -125,14 +125,6 @@ pub enum Directive {
 }
 
 impl Directive {
-    fn to_ascii_char(&self) -> char {
-        match self {
-            Directive::Green => 'g',
-            Directive::Yellow => 'y',
-            Directive::Black => 'b',
-        }
-    }
-
     fn to_char(&self) -> char {
         match self {
             Directive::Green => '🟩',
@@ -148,22 +140,6 @@ pub struct Feedback {
 }
 
 impl Feedback {
-    pub fn from_str(s: &str) -> Result<Feedback, Box<dyn Error>> {
-        if s.len() != WORD_SIZE {
-            return Err(format!("feedback must be {} characters", WORD_SIZE).into());
-        }
-        let mut directives = [Directive::Green; WORD_SIZE];
-        for (i, c) in s.char_indices() {
-            directives[i] = match c {
-                'g' | 'G' => Directive::Green,
-                'y' | 'Y' => Directive::Yellow,
-                'b' | 'B' => Directive::Black,
-                _ => return Err(format!("invalid directive: {}", c).into()),
-            };
-        }
-        Ok(Feedback { directives })
-    }
-
     pub fn from_word(guess: &Word, solution: &Word) -> Feedback {
         let mut directives = [Directive::Black; WORD_SIZE];
         let mut claimed = [false; WORD_SIZE];
@@ -194,22 +170,7 @@ impl Feedback {
     }
 
     pub fn to_string(&self) -> String {
-        self.directives().iter().map(|d| d.to_char()).collect()
-    }
-
-    pub fn to_ascii_string(&self) -> String {
-        self.directives()
-            .iter()
-            .map(|d| d.to_ascii_char())
-            .collect()
-    }
-
-    fn directives(&self) -> &[Directive] {
-        &self.directives
-    }
-
-    pub fn is_all_green(&self) -> bool {
-        self.directives.iter().all(|d| *d == Directive::Green)
+        self.directives.iter().map(|d| d.to_char()).collect()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Directive> {
