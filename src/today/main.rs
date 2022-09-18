@@ -77,10 +77,17 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("{}", Feedback::from_word(&solution, &solution));
 
     println!();
-    for (w, _) in selected.iter() {
-        println!("{}", w)
+    for (w, f) in selected.iter() {
+        println!("{} {}", f, w)
     }
-    println!("{}", &solution);
+    println!(
+        "{} {}",
+        Feedback::from_word(&solution, &solution),
+        &solution,
+    );
+
+    println!();
+    println!("VERSION: {}", data.version());
 
     Ok(())
 }
