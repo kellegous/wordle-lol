@@ -58,6 +58,10 @@ impl Word {
     pub fn to_string(&self) -> String {
         self.chars().into_iter().map(|c| c.char()).collect()
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Char> {
+        self.chars().iter()
+    }
 }
 
 impl std::fmt::Display for Word {
@@ -112,7 +116,7 @@ impl<'de> Visitor<'de> for WordVisitor {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Directive {
     Green,
@@ -121,14 +125,6 @@ pub enum Directive {
 }
 
 impl Directive {
-    fn matches(&self, i: usize, guess: &Word, candidate: &Word) -> bool {
-        match self {
-            Directive::Green => guess[i] == candidate[i],
-            Directive::Yellow => guess[i] != candidate[i] && candidate.contains(guess[i]),
-            Directive::Black => !candidate.contains(guess[i]),
-        }
-    }
-
     fn to_ascii_char(&self) -> char {
         match self {
             Directive::Green => 'g',
@@ -146,7 +142,7 @@ impl Directive {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub struct Feedback {
     directives: [Directive; WORD_SIZE],
 }
@@ -214,6 +210,10 @@ impl Feedback {
 
     pub fn is_all_green(&self) -> bool {
         self.directives.iter().all(|d| *d == Directive::Green)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Directive> {
+        self.directives.iter()
     }
 }
 

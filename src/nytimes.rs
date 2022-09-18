@@ -33,10 +33,14 @@ impl Data {
         &self.guesses
     }
 
-    pub fn solution_on(&self, day: NaiveDate) -> Word {
+    pub fn solution_on(&self, day: NaiveDate) -> (i64, Word) {
         let start = NaiveDate::from_ymd(2021, 6, 19);
         let ix = day.signed_duration_since(start).num_days();
-        self.solutions[ix as usize % self.solutions.len()]
+        (ix, self.solutions[ix as usize % self.solutions.len()])
+    }
+
+    pub fn all(&self) -> impl Iterator<Item = &Word> {
+        self.solutions.iter().chain(self.guesses.iter())
     }
 }
 
