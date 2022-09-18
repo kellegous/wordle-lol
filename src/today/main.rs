@@ -44,7 +44,6 @@ fn score_of(fb: &Feedback) -> usize {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let data = nytimes::Data::fetch()?;
-    // let all = data.all().map(|w| *w).collect::<Vec<Word>>();
     let (num, solution) = data.solution_on(Local::now().date().naive_local());
 
     let matcher = Matcher::new(
