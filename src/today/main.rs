@@ -1,7 +1,7 @@
 use std::error::Error;
 
 use chrono::Local;
-use std::collections::BTreeSet;
+use std::collections::BinaryHeap;
 use wordle_lol::{nytimes, Directive, Feedback, Word, WORD_SIZE};
 
 #[derive(Copy, Clone)]
@@ -42,6 +42,20 @@ fn score_of(fb: &Feedback) -> usize {
     WORD_SIZE - fb.iter().filter(|&d| *d == Directive::Black).count()
 }
 
+fn select_top_k(
+    it: impl Iterator<Item = (usize, Word, Feedback)>,
+    k: usize,
+) -> impl Iterator<Item = (Word, Feedback)> {
+    let mut h = BinaryHeap::new();
+    for item in it {
+        h.push(item);
+        if h.len() > k {
+            h.pop();
+        }
+    }
+    h.into_iter().map(|(_, w, f)| (w, f))
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let data = nytimes::Data::fetch()?;
     let (num, solution) = data.solution_on(Local::now().date().naive_local());
@@ -54,20 +68,16 @@ fn main() -> Result<(), Box<dyn Error>> {
         Match::Is(Directive::Green),
     );
 
-    let selected = data
-        .all()
-        .map(|w| {
-            let f = Feedback::from_word(w, &solution);
-            (score_of(&f), *w, f)
-        })
-        .filter(|(_, _, f)| matcher.matches(f))
-        .collect::<BTreeSet<(usize, Word, Feedback)>>();
-
-    let selected = selected
-        .iter()
-        .take(5)
-        .map(|(_, w, f)| (*w, *f))
-        .collect::<Vec<(Word, Feedback)>>();
+    let selected = select_top_k(
+        data.all()
+            .map(|w| {
+                let f = Feedback::from_word(w, &solution);
+                (score_of(&f), *w, f)
+            })
+            .filter(|(_, _, f)| matcher.matches(f)),
+        5,
+    )
+    .collect::<Vec<(Word, Feedback)>>();
 
     println!("Wordle {} {}/6*", num, selected.len() + 1);
     println!();
