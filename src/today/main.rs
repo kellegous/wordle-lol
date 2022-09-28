@@ -1,7 +1,6 @@
-use std::error::Error;
-
 use chrono::Local;
-use std::collections::BinaryHeap;
+use std::collections::{BTreeSet, HashMap};
+use std::error::Error;
 use wordle_lol::{nytimes, Directive, Feedback, Word, WORD_SIZE};
 
 #[derive(Copy, Clone)]
@@ -38,22 +37,39 @@ impl Matcher {
     }
 }
 
-fn score_of(fb: &Feedback) -> usize {
-    WORD_SIZE - fb.iter().filter(|&d| *d == Directive::Black).count()
-}
-
-fn select_top_k(
-    it: impl Iterator<Item = (usize, Word, Feedback)>,
-    k: usize,
-) -> impl Iterator<Item = (Word, Feedback)> {
-    let mut h = BinaryHeap::new();
-    for item in it {
-        h.push(item);
-        if h.len() > k {
-            h.pop();
+fn constraint_for(w: &Word, f: &Feedback) -> String {
+    let mut s = BTreeSet::new();
+    for (d, c) in f.iter().zip(w.iter()) {
+        if *d == Directive::Yellow {
+            s.insert(c.char());
         }
     }
-    h.into_iter().map(|(_, w, f)| (w, f))
+    s.iter().collect::<String>()
+}
+
+fn select(it: impl Iterator<Item = (Word, Feedback)>, k: usize) -> Vec<(Word, Feedback)> {
+    let mut by_constraint: HashMap<String, Vec<(Word, Feedback)>> = HashMap::new();
+    for (w, f) in it {
+        by_constraint
+            .entry(constraint_for(&w, &f))
+            .or_insert(Vec::new())
+            .push((w, f));
+    }
+
+    let mut items = by_constraint.values().collect::<Vec<_>>();
+    items.sort_by(|&a, &b| b.len().cmp(&a.len()));
+
+    let mut res = Vec::new();
+    for item in items {
+        for (w, f) in item {
+            res.push((*w, *f));
+            if res.len() == k {
+                return res;
+            }
+        }
+    }
+
+    res
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -68,16 +84,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         Match::Is(Directive::Green),
     );
 
-    let selected = select_top_k(
-        data.all()
-            .map(|w| {
-                let f = Feedback::from_word(w, &solution);
-                (score_of(&f), *w, f)
-            })
-            .filter(|(_, _, f)| matcher.matches(f)),
+    let selected = select(
+        data.all().filter_map(|w| {
+            let f = Feedback::from_word(w, &solution);
+            if matcher.matches(&f) {
+                Some((*w, f))
+            } else {
+                None
+            }
+        }),
         5,
-    )
-    .collect::<Vec<(Word, Feedback)>>();
+    );
 
     println!("Wordle {} {}/6*", num, selected.len() + 1);
     println!();
