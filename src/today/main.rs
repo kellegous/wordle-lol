@@ -37,6 +37,11 @@ impl Matcher {
     }
 }
 
+// For guesses that have yellow directives, this implies a constraint that
+// must be present in all subsequent guesses when using hard mode. This function
+// takes a guess and returns the constraints that contains the set of characters
+// that must be present in each subsequent guess. The characters in the set will
+// be sorted so that the string value is canonical for all permutations.
 fn constraint_for(w: &Word, f: &Feedback) -> String {
     let mut s = BTreeSet::new();
     for (d, c) in f.iter().zip(w.iter()) {
@@ -48,6 +53,11 @@ fn constraint_for(w: &Word, f: &Feedback) -> String {
 }
 
 fn select(it: impl Iterator<Item = (Word, Feedback)>, k: usize) -> Vec<(Word, Feedback)> {
+    // TODO(knorton): This is wrong but works most of the time and was expedient. The issue is that in the very
+    // rare case that we exaust the collection of words with no constraints and the next group with similar contraints,
+    // then we're not necessarily going to pick a next group that is compatible with the previous group. This should
+    // instead work by taking the zero-length contraints, then picking the most abundant single-length contraint and
+    // then finding the most abundant, yet compatible, two-length contraint.
     let mut by_constraint: HashMap<String, Vec<(Word, Feedback)>> = HashMap::new();
     for (w, f) in it {
         by_constraint
@@ -59,17 +69,12 @@ fn select(it: impl Iterator<Item = (Word, Feedback)>, k: usize) -> Vec<(Word, Fe
     let mut items = by_constraint.values().collect::<Vec<_>>();
     items.sort_by(|&a, &b| b.len().cmp(&a.len()));
 
-    let mut res = Vec::new();
-    for item in items {
-        for (w, f) in item {
-            res.push((*w, *f));
-            if res.len() == k {
-                return res;
-            }
-        }
-    }
-
-    res
+    items
+        .iter()
+        .flat_map(|&v| v.iter())
+        .map(|(w, f)| (*w, *f))
+        .take(k)
+        .collect()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
