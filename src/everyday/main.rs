@@ -1,42 +1,24 @@
-// fn solve_all(data: &Data) {
-//     let matcher = Matcher::new(
-//         Match::Is(Directive::Green),
-//         Match::IsNot(Directive::Green),
-//         Match::IsNot(Directive::Green),
-//         Match::IsNot(Directive::Green),
-//         Match::Is(Directive::Green),
-//     );
+use std::error::Error;
+use wordle_lol::{find_guesses, nytimes, print_solution, Directive, Match, Matcher};
 
-//     let mut count = 0;
-//     let mut sum = 0;
-//     for solution in data.solutions() {
-//         let selected = select(
-//             data.all().filter_map(|w| {
-//                 let f = Feedback::from_word(w, &solution);
-//                 if matcher.matches(&f) {
-//                     Some((*w, f))
-//                 } else {
-//                     None
-//                 }
-//             }),
-//             5,
-//         );
+fn main() -> Result<(), Box<dyn Error>> {
+    let data = nytimes::Data::fetch()?;
 
-//         sum += selected.len();
-//         count += 1;
+    let matcher = Matcher::new(
+        Match::Is(Directive::Green),
+        Match::IsNot(Directive::Green),
+        Match::IsNot(Directive::Green),
+        Match::IsNot(Directive::Green),
+        Match::Is(Directive::Green),
+    );
 
-//         println!("{}", solution);
-//         for (w, f) in selected.iter() {
-//             println!("{} {}", f, w)
-//         }
-//         println!(
-//             "{} {}",
-//             Feedback::from_word(&solution, &solution),
-//             &solution,
-//         );
-//     }
+    let mut num_guesses = Vec::new();
+    for (i, solution) in data.solutions().iter().enumerate() {
+        let selected = find_guesses(data.all(), solution, &matcher, 5);
+        num_guesses.push(selected.len() + 1);
+        print_solution(i, solution, &selected);
+        println!();
+    }
 
-//     println!("{}", sum as f64 / count as f64);
-// }
-
-fn main() {}
+    Ok(())
+}

@@ -324,3 +324,11 @@ pub fn find_guesses<'a>(
 
     res
 }
+
+pub fn print_solution(num: usize, solution: &Word, guesses: &[(Word, Feedback)]) {
+    println!("Wordle {} {}/6*", num, guesses.len() + 1);
+    for (w, f) in guesses.iter() {
+        println!("{} {}", f, w);
+    }
+    println!("{} {}", Feedback::from_word(solution, solution), solution);
+}
