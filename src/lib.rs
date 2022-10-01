@@ -1,5 +1,6 @@
 use serde::de::{self, Deserialize, Deserializer, Visitor};
 use serde::ser::Serialize;
+use std::collections::{BTreeSet, HashMap};
 use std::error::Error;
 
 pub mod nytimes;
@@ -190,4 +191,136 @@ impl std::fmt::Display for Feedback {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", self.to_string())
     }
+}
+
+#[derive(Copy, Clone)]
+pub enum Match {
+    Is(Directive),
+    IsNot(Directive),
+}
+
+impl Match {
+    pub fn matches(&self, d: Directive) -> bool {
+        match self {
+            Self::Is(x) => d == *x,
+            Self::IsNot(x) => d != *x,
+        }
+    }
+}
+
+pub struct Matcher {
+    matches: [Match; WORD_SIZE],
+}
+
+impl Matcher {
+    pub fn new(a: Match, b: Match, c: Match, d: Match, e: Match) -> Matcher {
+        Matcher {
+            matches: [a, b, c, d, e],
+        }
+    }
+
+    pub fn matches(&self, feedback: &Feedback) -> bool {
+        self.matches
+            .iter()
+            .zip(feedback.iter())
+            .all(|(m, d)| m.matches(*d))
+    }
+}
+
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub struct Constraint {
+    s: String,
+}
+
+impl Constraint {
+    pub fn from_word_and_feedback(w: &Word, f: &Feedback) -> Constraint {
+        let s = f
+            .iter()
+            .zip(w.iter())
+            .filter_map(|(d, c)| {
+                if *d == Directive::Yellow {
+                    Some(c.char())
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeSet<_>>()
+            .iter()
+            .collect::<String>();
+        Constraint { s }
+    }
+
+    pub fn is_compatible(&self, c: &Constraint) -> bool {
+        c.len() > self.len() && self.s.chars().all(|v| c.s.contains(v))
+    }
+
+    pub fn len(&self) -> usize {
+        self.s.len()
+    }
+
+    pub fn empty() -> Constraint {
+        Constraint { s: String::new() }
+    }
+}
+
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.s)
+    }
+}
+
+fn next_group_of_guesses<'a>(
+    m: &'a HashMap<Constraint, Vec<(Word, Feedback)>>,
+    key: &Constraint,
+) -> Option<(&'a Constraint, &'a Vec<(Word, Feedback)>)> {
+    m.iter()
+        .filter(|(k, _)| key.is_compatible(k))
+        .max_by(|(_, a), (_, b)| b.len().cmp(&a.len()))
+}
+
+pub fn find_guesses<'a>(
+    words: impl Iterator<Item = &'a Word>,
+    solution: &Word,
+    matcher: &Matcher,
+    k: usize,
+) -> Vec<(Word, Feedback)> {
+    let selected = words.filter_map(|w| {
+        let f = Feedback::from_word(w, &solution);
+        if matcher.matches(&f) {
+            Some((*w, f))
+        } else {
+            None
+        }
+    });
+
+    let mut by_constraint: HashMap<Constraint, Vec<(Word, Feedback)>> = HashMap::new();
+    for (w, f) in selected {
+        by_constraint
+            .entry(Constraint::from_word_and_feedback(&w, &f))
+            .or_insert(Vec::new())
+            .push((w, f));
+    }
+
+    let mut constraint = &Constraint::empty();
+    let empty = Vec::new();
+    let mut res = by_constraint
+        .get(&constraint)
+        .unwrap_or_else(|| &empty)
+        .iter()
+        .take(k)
+        .map(|x| *x)
+        .collect::<Vec<_>>();
+
+    while res.len() < k {
+        let (nc, nv) = match next_group_of_guesses(&by_constraint, &constraint) {
+            Some(x) => x,
+            None => break,
+        };
+        constraint = nc;
+        for item in nv.iter().take(k - res.len()) {
+            res.push(*item);
+        }
+    }
+
+    res
 }
