@@ -14,3 +14,7 @@ url = "2.3"
 [[bin]]
 name = "today"
 path = "src/today/main.rs"
+
+[[bin]]
+name = "everyday"
+path = "src/everyday/main.rs"

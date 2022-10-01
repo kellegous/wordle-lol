@@ -37,44 +37,88 @@ impl Matcher {
     }
 }
 
-// For guesses that have yellow directives, this implies a constraint that
-// must be present in all subsequent guesses when using hard mode. This function
-// takes a guess and returns the constraints that contains the set of characters
-// that must be present in each subsequent guess. The characters in the set will
-// be sorted so that the string value is canonical for all permutations.
-fn constraint_for(w: &Word, f: &Feedback) -> String {
-    let mut s = BTreeSet::new();
-    for (d, c) in f.iter().zip(w.iter()) {
-        if *d == Directive::Yellow {
-            s.insert(c.char());
-        }
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+struct Constraint {
+    s: String,
+}
+
+impl Constraint {
+    fn from_word_and_feedback(w: &Word, f: &Feedback) -> Constraint {
+        let s = f
+            .iter()
+            .zip(w.iter())
+            .filter_map(|(d, c)| {
+                if *d == Directive::Yellow {
+                    Some(c.char())
+                } else {
+                    None
+                }
+            })
+            .collect::<BTreeSet<_>>()
+            .iter()
+            .collect::<String>();
+        Constraint { s }
     }
-    s.iter().collect::<String>()
+
+    fn is_compatible(&self, c: &Constraint) -> bool {
+        c.len() > self.len() && self.s.chars().all(|v| c.s.contains(v))
+    }
+
+    fn len(&self) -> usize {
+        self.s.len()
+    }
+
+    fn empty() -> Constraint {
+        Constraint { s: String::new() }
+    }
+}
+
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.s)
+    }
+}
+
+fn next_group<'a>(
+    m: &'a HashMap<Constraint, Vec<(Word, Feedback)>>,
+    key: &Constraint,
+) -> Option<(&'a Constraint, &'a Vec<(Word, Feedback)>)> {
+    m.iter()
+        .filter(|(k, _)| key.is_compatible(k))
+        .max_by(|(_, a), (_, b)| b.len().cmp(&a.len()))
 }
 
 fn select(it: impl Iterator<Item = (Word, Feedback)>, k: usize) -> Vec<(Word, Feedback)> {
-    // TODO(knorton): This is wrong but works most of the time and was expedient. The issue is that in the very
-    // rare case that we exaust the collection of words with no constraints and the next group with similar contraints,
-    // then we're not necessarily going to pick a next group that is compatible with the previous group. This should
-    // instead work by taking the zero-length contraints, then picking the most abundant single-length contraint and
-    // then finding the most abundant, yet compatible, two-length contraint.
-    let mut by_constraint: HashMap<String, Vec<(Word, Feedback)>> = HashMap::new();
+    let mut by_constraint: HashMap<Constraint, Vec<(Word, Feedback)>> = HashMap::new();
     for (w, f) in it {
         by_constraint
-            .entry(constraint_for(&w, &f))
+            .entry(Constraint::from_word_and_feedback(&w, &f))
             .or_insert(Vec::new())
             .push((w, f));
     }
 
-    let mut items = by_constraint.values().collect::<Vec<_>>();
-    items.sort_by(|&a, &b| b.len().cmp(&a.len()));
-
-    items
+    let mut c = &Constraint::empty();
+    let empty = Vec::new();
+    let mut res = by_constraint
+        .get(&c)
+        .unwrap_or_else(|| &empty)
         .iter()
-        .flat_map(|&v| v.iter())
-        .map(|(w, f)| (*w, *f))
         .take(k)
-        .collect()
+        .map(|x| *x)
+        .collect::<Vec<_>>();
+
+    while res.len() < k {
+        let (nc, nv) = match next_group(&by_constraint, &c) {
+            Some(x) => x,
+            None => break,
+        };
+        c = nc;
+        for item in nv.iter().take(k - res.len()) {
+            res.push(*item);
+        }
+    }
+
+    res
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
