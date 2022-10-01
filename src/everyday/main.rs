@@ -31,21 +31,6 @@ fn report_stats(mut num_guesses: Vec<usize>) {
 
     println!();
     println!("Guess Histogram");
-    /*
-        let dw = 60.0 / *hist.values().max().unwrap() as f64;
-    for i in 1..=max {
-        let v = *hist.get(&i).unwrap_or(&0);
-        let w = v as f64 * dw;
-        let bar = std::iter::repeat("░").take(w as usize).collect::<String>();
-        println!(
-            "{:2}: ░{} {} ({:0.1}%)",
-            i,
-            bar,
-            v.to_formatted_string(&Locale::en),
-            100.0 * v as f64 / n as f64
-        );
-    }
-     */
     let dw = 60.0 / *histogram.values().max().unwrap() as f64;
     for i in 1..=max {
         let v = *histogram.get(&i).unwrap_or(&0);
